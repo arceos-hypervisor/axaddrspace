@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["AddrSpace","MappingFlags"],"type":["GuestPhysAddr","GuestVirtAddr","HostPhysAddr","HostVirtAddr"]};
