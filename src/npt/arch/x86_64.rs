@@ -172,9 +172,9 @@ impl PagingMetaData for ExtendedPageTableMetadata {
     const PA_MAX_BITS: usize = 52;
     const VA_MAX_BITS: usize = 48;
 
-    type VirtAddr = memory_addr::VirtAddr;
+    type VirtAddr = crate::addr::GuestPhysAddr;
 
-    fn flush_tlb(_vaddr: Option<memory_addr::VirtAddr>) {
+    fn flush_tlb(_vaddr: Option<crate::addr::GuestPhysAddr>) {
         todo!()
     }
 }

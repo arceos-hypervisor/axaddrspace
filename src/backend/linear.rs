@@ -1,7 +1,7 @@
-use memory_addr::{PhysAddr, VirtAddr};
 use page_table_multiarch::MappingFlags;
 use page_table_multiarch::PagingHandler;
 
+use crate::addr::{GuestPhysAddr, HostPhysAddr};
 use crate::backend::Backend;
 use crate::npt::NestedPageTable as PageTable;
 
@@ -13,13 +13,13 @@ impl Backend {
 
     pub(crate) fn map_linear<H: PagingHandler>(
         &self,
-        start: VirtAddr,
+        start: GuestPhysAddr,
         size: usize,
         flags: MappingFlags,
         pt: &mut PageTable<H>,
         pa_va_offset: usize,
     ) -> bool {
-        let pa_start = PhysAddr::from(start.as_usize() - pa_va_offset);
+        let pa_start = HostPhysAddr::from(start.as_usize() - pa_va_offset);
         debug!(
             "map_linear: [{:#x}, {:#x}) -> [{:#x}, {:#x}) {:?}",
             start,
@@ -30,7 +30,7 @@ impl Backend {
         );
         pt.map_region(
             start,
-            |va| PhysAddr::from(va.as_usize() - pa_va_offset),
+            |va| HostPhysAddr::from(va.as_usize() - pa_va_offset),
             size,
             flags,
             false,
@@ -41,7 +41,7 @@ impl Backend {
 
     pub(crate) fn unmap_linear<H: PagingHandler>(
         &self,
-        start: VirtAddr,
+        start: GuestPhysAddr,
         size: usize,
         pt: &mut PageTable<H>,
         _pa_va_offset: usize,

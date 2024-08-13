@@ -1,6 +1,7 @@
-use memory_addr::{PageIter4K, PhysAddr, VirtAddr};
+use memory_addr::PageIter4K;
 use page_table_multiarch::{MappingFlags, PageSize, PagingHandler};
 
+use crate::addr::{GuestPhysAddr, HostPhysAddr};
 use crate::backend::Backend;
 use crate::npt::NestedPageTable as PageTable;
 
@@ -12,7 +13,7 @@ impl Backend {
 
     pub(crate) fn map_alloc<H: PagingHandler>(
         &self,
-        start: VirtAddr,
+        start: GuestPhysAddr,
         size: usize,
         flags: MappingFlags,
         pt: &mut PageTable<H>,
@@ -40,7 +41,7 @@ impl Backend {
             // Map to a empty entry for on-demand mapping.
             pt.map_region(
                 start,
-                |_va| PhysAddr::from(0),
+                |_va| HostPhysAddr::from(0),
                 size,
                 MappingFlags::empty(),
                 false,
@@ -52,7 +53,7 @@ impl Backend {
 
     pub(crate) fn unmap_alloc<H: PagingHandler>(
         &self,
-        start: VirtAddr,
+        start: GuestPhysAddr,
         size: usize,
         pt: &mut PageTable<H>,
         _populate: bool,
@@ -75,7 +76,7 @@ impl Backend {
 
     pub(crate) fn handle_page_fault_alloc<H: PagingHandler>(
         &self,
-        vaddr: VirtAddr,
+        gpa: GuestPhysAddr,
         orig_flags: MappingFlags,
         pt: &mut PageTable<H>,
         populate: bool,
@@ -84,10 +85,10 @@ impl Backend {
             false // Populated mappings should not trigger page faults.
         } else {
             // Allocate a physical frame lazily and map it to the fault address.
-            // `vaddr` does not need to be aligned. It will be automatically
+            // `gpa` does not need to be aligned. It will be automatically
             // aligned during `pt.remap` regardless of the page size.
             H::alloc_frame()
-                .and_then(|frame| pt.remap(vaddr, frame, orig_flags).ok())
+                .and_then(|frame| pt.remap(gpa, frame, orig_flags).ok())
                 .is_some()
         }
     }

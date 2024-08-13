@@ -4,6 +4,7 @@ use memory_addr::VirtAddr;
 use memory_set::MappingBackend;
 use page_table_multiarch::{MappingFlags, PagingHandler};
 
+use crate::addr::GuestPhysAddr;
 use crate::npt::NestedPageTable as PageTable;
 
 mod alloc;
@@ -49,15 +50,39 @@ impl<H: PagingHandler> MappingBackend<MappingFlags, PageTable<H>> for Backend {
         pt: &mut PageTable<H>,
     ) -> bool {
         match *self {
-            Self::Linear { pa_va_offset } => self.map_linear(start, size, flags, pt, pa_va_offset),
-            Self::Alloc { populate } => self.map_alloc(start, size, flags, pt, populate),
+            Self::Linear { pa_va_offset } => {
+                self.map_linear(start.into(), size, flags, pt, pa_va_offset)
+            }
+            Self::Alloc { populate } => self.map_alloc(start.into(), size, flags, pt, populate),
         }
     }
 
     fn unmap(&self, start: VirtAddr, size: usize, pt: &mut PageTable<H>) -> bool {
         match *self {
-            Self::Linear { pa_va_offset } => self.unmap_linear(start, size, pt, pa_va_offset),
-            Self::Alloc { populate } => self.unmap_alloc(start, size, pt, populate),
+            Self::Linear { pa_va_offset } => {
+                self.unmap_linear(start.into(), size, pt, pa_va_offset)
+            }
+            Self::Alloc { populate } => self.unmap_alloc(start.into(), size, pt, populate),
+        }
+    }
+
+    fn protect(
+        &self,
+        start: VirtAddr,
+        size: usize,
+        new_flags: MappingFlags,
+        page_table: &mut PageTable<H>,
+    ) -> bool {
+        // TODO
+        match page_table.protect_region(start.into(), size, new_flags, true) {
+            Ok(tlb_flush_all) => {
+                tlb_flush_all.ignore();
+                true
+            }
+            Err(err) => {
+                warn!("Failed to protect_region, err {err:?}");
+                false
+            }
         }
     }
 }
@@ -65,14 +90,14 @@ impl<H: PagingHandler> MappingBackend<MappingFlags, PageTable<H>> for Backend {
 impl Backend {
     pub(crate) fn handle_page_fault<H: PagingHandler>(
         &self,
-        vaddr: VirtAddr,
+        gpa: GuestPhysAddr,
         orig_flags: MappingFlags,
         page_table: &mut PageTable<H>,
     ) -> bool {
         match *self {
             Self::Linear { .. } => false, // Linear mappings should not trigger page faults.
             Self::Alloc { populate } => {
-                self.handle_page_fault_alloc(vaddr, orig_flags, page_table, populate)
+                self.handle_page_fault_alloc(gpa, orig_flags, page_table, populate)
             }
         }
     }
