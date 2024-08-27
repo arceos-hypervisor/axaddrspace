@@ -43,7 +43,10 @@ impl<H: PagingHandler> Clone for Backend<H> {
     fn clone(&self) -> Self {
         match self {
             &Self::Linear { pa_va_offset } => Self::Linear { pa_va_offset },
-            &Self::Alloc { populate, .. } => Self::Alloc { populate: populate, _phantom: core::marker::PhantomData },
+            &Self::Alloc { populate, .. } => Self::Alloc {
+                populate: populate,
+                _phantom: core::marker::PhantomData,
+            },
         }
     }
 }
@@ -73,7 +76,13 @@ impl<H: PagingHandler> MappingBackend for Backend<H> {
         }
     }
 
-    fn protect(&self, _start: GuestPhysAddr, _size: usize, _new_flags: MappingFlags, _page_table: &mut PageTable<H>) -> bool {
+    fn protect(
+        &self,
+        _start: GuestPhysAddr,
+        _size: usize,
+        _new_flags: MappingFlags,
+        _page_table: &mut PageTable<H>,
+    ) -> bool {
         // a stub here
         true
     }

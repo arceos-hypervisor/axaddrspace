@@ -7,7 +7,10 @@ use crate::{npt::NestedPageTable as PageTable, GuestPhysAddr};
 impl<H: PagingHandler> Backend<H> {
     /// Creates a new allocation mapping backend.
     pub const fn new_alloc(populate: bool) -> Self {
-        Self::Alloc { populate, _phantom: core::marker::PhantomData }
+        Self::Alloc {
+            populate,
+            _phantom: core::marker::PhantomData,
+        }
     }
 
     pub(crate) fn map_alloc(
