@@ -16,9 +16,5 @@ numeric-enum-macro = "0.2"
 axerrno = "0.1.0"
 memory_addr = "0.3"
 memory_set = "0.3"
-page_table_entry = { version = "0.4", features = ["arm-el2"] }
-page_table_multiarch = "0.4"
-
-[patch.crates-io]
-page_table_entry = { git = "https://github.com/arceos-hypervisor/page_table_multiarch.git", rev = "8fd8a78" }
-page_table_multiarch = { git = "https://github.com/arceos-hypervisor/page_table_multiarch.git", rev = "8fd8a78" }
+page_table_entry = { version = "^0.4.1", features = ["arm-el2"] }
+page_table_multiarch = "^0.4.1"
