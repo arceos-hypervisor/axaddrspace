@@ -21,3 +21,10 @@ def_usize_addr_formatter! {
 pub type GuestVirtAddrRange = AddrRange<GuestVirtAddr>;
 /// Guest physical address range.
 pub type GuestPhysAddrRange = AddrRange<GuestPhysAddr>;
+
+#[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
+impl page_table_multiarch::riscv::SvVirtAddr for GuestPhysAddr {
+    fn flush_tlb(vaddr: Option<Self>) {
+        // no-op
+    }
+}
