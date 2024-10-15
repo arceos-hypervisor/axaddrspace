@@ -1,0 +1,9 @@
+(function() {
+    var implementors = Object.fromEntries([["axaddrspace",[["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html\" title=\"trait core::clone::Clone\">Clone</a> for <a class=\"struct\" href=\"axaddrspace/struct.GuestPhysAddr.html\" title=\"struct axaddrspace::GuestPhysAddr\">GuestPhysAddr</a>"],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html\" title=\"trait core::clone::Clone\">Clone</a> for <a class=\"struct\" href=\"axaddrspace/struct.GuestVirtAddr.html\" title=\"struct axaddrspace::GuestVirtAddr\">GuestVirtAddr</a>"],["impl&lt;H: PagingHandler&gt; <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html\" title=\"trait core::clone::Clone\">Clone</a> for <a class=\"enum\" href=\"axaddrspace/enum.Backend.html\" title=\"enum axaddrspace::Backend\">Backend</a>&lt;H&gt;"]]]]);
+    if (window.register_implementors) {
+        window.register_implementors(implementors);
+    } else {
+        window.pending_implementors = implementors;
+    }
+})()
+//{"start":57,"fragment_lengths":[857]}
