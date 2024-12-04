@@ -9,6 +9,7 @@ extern crate alloc;
 
 mod addr;
 mod address_space;
+pub mod device;
 mod npt;
 
 pub use addr::*;
