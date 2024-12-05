@@ -1,3 +1,5 @@
+use core::fmt::LowerHex;
+
 use memory_addr::AddrRange;
 
 use crate::GuestPhysAddr;
@@ -54,6 +56,12 @@ impl DeviceAddrRange for SysRegAddrRange {
     }
 }
 
+impl LowerHex for SysRegAddrRange {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{:#x}..={:#x}", self.start.0, self.end.0)
+    }
+}
+
 impl DeviceAddr for Port {}
 
 /// A range of port numbers.
@@ -77,5 +85,11 @@ impl DeviceAddrRange for PortRange {
 
     fn contains(&self, addr: Self::Addr) -> bool {
         addr.0 >= self.start.0 && addr.0 <= self.end.0
+    }
+}
+
+impl LowerHex for PortRange {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{:#x}..={:#x}", self.start.0, self.end.0)
     }
 }
