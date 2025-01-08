@@ -3,7 +3,7 @@
 use memory_set::MappingBackend;
 use page_table_multiarch::{MappingFlags, PagingHandler};
 
-use crate::{npt::NestedPageTable as PageTable, GuestPhysAddr};
+use crate::{GuestPhysAddr, npt::NestedPageTable as PageTable};
 
 mod alloc;
 mod linear;
@@ -42,10 +42,10 @@ pub enum Backend<H: PagingHandler> {
 
 impl<H: PagingHandler> Clone for Backend<H> {
     fn clone(&self) -> Self {
-        match self {
-            &Self::Linear { pa_va_offset } => Self::Linear { pa_va_offset },
-            &Self::Alloc { populate, .. } => Self::Alloc {
-                populate: populate,
+        match *self {
+            Self::Linear { pa_va_offset } => Self::Linear { pa_va_offset },
+            Self::Alloc { populate, .. } => Self::Alloc {
+                populate,
                 _phantom: core::marker::PhantomData,
             },
         }
