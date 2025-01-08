@@ -103,12 +103,12 @@ pub struct SysRegAddr(pub usize); // u32 seems to be enough, but we use usize fo
 
 impl SysRegAddr {
     /// Creates a new `SysRegAddr` instance.
-    pub fn new(addr: usize) -> Self {
+    pub const fn new(addr: usize) -> Self {
         Self(addr)
     }
 
     /// Returns the address.
-    pub fn addr(&self) -> usize {
+    pub const fn addr(&self) -> usize {
         self.0
     }
 }
