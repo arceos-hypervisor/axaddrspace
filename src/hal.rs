@@ -1,7 +1,8 @@
 use crate::{HostPhysAddr, HostVirtAddr};
 
+/// Hardware abstraction layer for memory management.
 pub trait AxMmHal {
-    /// Allocates a frame and returns its host physical address.
+    /// Allocates a frame and returns its host physical address. The
     ///
     /// # Returns
     ///
