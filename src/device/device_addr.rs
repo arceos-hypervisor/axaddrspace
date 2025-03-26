@@ -30,12 +30,14 @@ impl DeviceAddrRange for AddrRange<GuestPhysAddr> {
 
 impl DeviceAddr for SysRegAddr {}
 
-/// A range of system register addresses.
+/// A inclusive range of system register addresses.
 ///
 /// Unlike [`AddrRange`], this type is inclusive on both ends.
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub struct SysRegAddrRange {
+    /// The start address of the range.
     pub start: SysRegAddr,
+    /// The end address of the range.
     pub end: SysRegAddr,
 }
 
@@ -62,12 +64,14 @@ impl LowerHex for SysRegAddrRange {
 
 impl DeviceAddr for Port {}
 
-/// A range of port numbers.
+/// A inclusive range of port numbers.
 ///
 /// Unlike [`AddrRange`], this type is inclusive on both ends.
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub struct PortRange {
+    /// The start port number of the range.
     pub start: Port,
+    /// The end port number of the range.
     pub end: Port,
 }
 
