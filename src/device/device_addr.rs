@@ -6,7 +6,6 @@ use crate::GuestPhysAddr;
 
 use super::{Port, SysRegAddr};
 
-
 /// An address-like type that can be used to access devices.
 pub trait DeviceAddr: Copy + Eq + Ord + core::fmt::Debug {}
 
@@ -18,7 +17,6 @@ pub trait DeviceAddrRange {
     /// Returns whether the address range contains the given address.
     fn contains(&self, addr: Self::Addr) -> bool;
 }
-
 
 impl DeviceAddr for GuestPhysAddr {}
 
@@ -33,7 +31,7 @@ impl DeviceAddrRange for AddrRange<GuestPhysAddr> {
 impl DeviceAddr for SysRegAddr {}
 
 /// A range of system register addresses.
-/// 
+///
 /// Unlike [`AddrRange`], this type is inclusive on both ends.
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub struct SysRegAddrRange {
@@ -65,7 +63,7 @@ impl LowerHex for SysRegAddrRange {
 impl DeviceAddr for Port {}
 
 /// A range of port numbers.
-/// 
+///
 /// Unlike [`AddrRange`], this type is inclusive on both ends.
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub struct PortRange {

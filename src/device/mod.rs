@@ -1,6 +1,6 @@
 //! Definitions about device accessing.
 
-use core::fmt::{LowerHex, UpperHex, Debug};
+use core::fmt::{Debug, LowerHex, UpperHex};
 
 mod device_addr;
 

@@ -7,7 +7,7 @@ pub(crate) use memory_addr::PAGE_SIZE_4K as PAGE_SIZE;
 use crate::{AxMmHal, HostPhysAddr};
 
 /// A physical frame which will be automatically deallocated when dropped.
-/// 
+///
 /// The frame is allocated using the [`AxMmHal`] implementation. The size of the frame is likely to
 /// be 4 KiB but the actual size is determined by the [`AxMmHal`] implementation.
 #[derive(Debug)]
@@ -36,9 +36,9 @@ impl<H: AxMmHal> PhysFrame<H> {
     }
 
     /// Create an uninitialized [`PhysFrame`].
-    /// 
+    ///
     /// # Safety
-    /// 
+    ///
     /// The caller must ensure that the [`PhysFrame`] is only used as a placeholder and never
     /// accessed.
     pub const unsafe fn uninit() -> Self {
