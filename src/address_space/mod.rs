@@ -6,7 +6,7 @@ use memory_addr::{MemoryAddr, PhysAddr, is_aligned_4k};
 use memory_set::{MemoryArea, MemorySet};
 use page_table_multiarch::PagingHandler;
 
-use crate::npt::NestedPageTable as PageTable;
+use npt_multiarch::NestedPageTable as PageTable;
 use crate::{GuestPhysAddr, GuestPhysAddrRange, mapping_err_to_ax_err};
 
 mod backend;

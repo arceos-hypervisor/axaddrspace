@@ -2,7 +2,7 @@ use memory_addr::PhysAddr;
 use page_table_multiarch::{MappingFlags, PagingHandler};
 
 use super::Backend;
-use crate::{GuestPhysAddr, npt::NestedPageTable as PageTable};
+use npt_multiarch::{GuestPhysAddr, NestedPageTable as PageTable};
 
 impl<H: PagingHandler> Backend<H> {
     /// Creates a new linear mapping backend.
