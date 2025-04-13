@@ -1,9 +1,7 @@
 //! Memory mapping backends.
 
 use memory_set::MappingBackend;
-use page_table_multiarch::{MappingFlags, PagingHandler};
-
-use npt_multiarch::{GuestPhysAddr, NestedPageTable as PageTable};
+use page_table_multiarch::{PageTable64, MappingFlags, PagingHandler, PagingMetaData, GenericPTE};
 
 mod alloc;
 mod linear;
@@ -16,7 +14,7 @@ mod linear;
 ///   contiguous and their addresses should be known when creating the mapping.
 /// - **Allocation**: used in general, or for lazy mappings. The target physical
 ///   frames are obtained from the global allocator.
-pub enum Backend<H: PagingHandler> {
+pub enum Backend<M: PagingMetaData, PTE: GenericPTE, H: PagingHandler> {
     /// Linear mapping backend.
     ///
     /// The offset between the virtual address and the physical address is
@@ -36,33 +34,37 @@ pub enum Backend<H: PagingHandler> {
         /// Whether to populate the physical frames when creating the mapping.
         populate: bool,
         /// A phantom data for the paging handler.
-        _phantom: core::marker::PhantomData<H>,
+        _phantom0: core::marker::PhantomData<M>,
+        _phantom1: core::marker::PhantomData<PTE>,
+        _phantom2: core::marker::PhantomData<H>,
     },
 }
 
-impl<H: PagingHandler> Clone for Backend<H> {
+impl<M: PagingMetaData, PTE: GenericPTE, H: PagingHandler> Clone for Backend<M, PTE, H> {
     fn clone(&self) -> Self {
         match *self {
             Self::Linear { pa_va_offset } => Self::Linear { pa_va_offset },
             Self::Alloc { populate, .. } => Self::Alloc {
                 populate,
-                _phantom: core::marker::PhantomData,
+                _phantom0: core::marker::PhantomData,
+                _phantom1: core::marker::PhantomData,
+                _phantom2: core::marker::PhantomData,
             },
         }
     }
 }
 
-impl<H: PagingHandler> MappingBackend for Backend<H> {
-    type Addr = GuestPhysAddr;
+impl<M: PagingMetaData, PTE: GenericPTE, H: PagingHandler> MappingBackend for Backend<M, PTE, H> {
+    type Addr = M::VirtAddr;
     type Flags = MappingFlags;
-    type PageTable = PageTable<H>;
+    type PageTable = PageTable64<M, PTE, H>;
 
     fn map(
         &self,
-        start: GuestPhysAddr,
+        start: M::VirtAddr,
         size: usize,
         flags: MappingFlags,
-        pt: &mut PageTable<H>,
+        pt: &mut Self::PageTable,
     ) -> bool {
         match *self {
             Self::Linear { pa_va_offset } => self.map_linear(start, size, flags, pt, pa_va_offset),
@@ -70,7 +72,7 @@ impl<H: PagingHandler> MappingBackend for Backend<H> {
         }
     }
 
-    fn unmap(&self, start: GuestPhysAddr, size: usize, pt: &mut PageTable<H>) -> bool {
+    fn unmap(&self, start: Self::Addr, size: usize, pt: &mut Self::PageTable) -> bool {
         match *self {
             Self::Linear { pa_va_offset } => self.unmap_linear(start, size, pt, pa_va_offset),
             Self::Alloc { populate, .. } => self.unmap_alloc(start, size, pt, populate),
@@ -79,22 +81,22 @@ impl<H: PagingHandler> MappingBackend for Backend<H> {
 
     fn protect(
         &self,
-        _start: GuestPhysAddr,
+        _start: Self::Addr,
         _size: usize,
         _new_flags: MappingFlags,
-        _page_table: &mut PageTable<H>,
+        _page_table: &mut Self::PageTable,
     ) -> bool {
         // a stub here
         true
     }
 }
 
-impl<H: PagingHandler> Backend<H> {
+impl<M: PagingMetaData, PTE: GenericPTE, H: PagingHandler> Backend<M, PTE, H> {
     pub(crate) fn handle_page_fault(
         &self,
-        vaddr: GuestPhysAddr,
+        vaddr: M::VirtAddr,
         orig_flags: MappingFlags,
-        page_table: &mut PageTable<H>,
+        page_table: &mut PageTable64<M, PTE, H>,
     ) -> bool {
         match *self {
             Self::Linear { .. } => false, // Linear mappings should not trigger page faults.

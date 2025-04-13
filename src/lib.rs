@@ -21,6 +21,8 @@ pub use hal::AxMmHal;
 use axerrno::AxError;
 use memory_set::MappingError;
 
+pub type AddrSpace<H> = address_space::AddrSpace<ArchPagingMetatData, ArchPTE, H>;
+
 /// Information about nested page faults.
 #[derive(Debug)]
 pub struct NestedPageFaultInfo {

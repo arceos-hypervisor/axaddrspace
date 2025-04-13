@@ -1,36 +1,37 @@
 use memory_addr::{PageIter4K, PhysAddr};
-use page_table_multiarch::{MappingFlags, PageSize, PagingHandler};
+use page_table_multiarch::{PageTable64, MappingFlags, PageSize, PagingHandler, PagingMetaData, GenericPTE};
 
 use super::Backend;
-use npt_multiarch::{GuestPhysAddr, NestedPageTable as PageTable};
 
-impl<H: PagingHandler> Backend<H> {
+impl<M: PagingMetaData, PTE: GenericPTE, H: PagingHandler> Backend<M, PTE, H> {
     /// Creates a new allocation mapping backend.
     pub const fn new_alloc(populate: bool) -> Self {
         Self::Alloc {
             populate,
-            _phantom: core::marker::PhantomData,
+            _phantom0: core::marker::PhantomData,
+            _phantom1: core::marker::PhantomData,
+            _phantom2: core::marker::PhantomData,
         }
     }
 
     pub(crate) fn map_alloc(
         &self,
-        start: GuestPhysAddr,
+        start: M::VirtAddr,
         size: usize,
         flags: MappingFlags,
-        pt: &mut PageTable<H>,
+        pt: &mut PageTable64<M, PTE, H>,
         populate: bool,
     ) -> bool {
         debug!(
             "map_alloc: [{:#x}, {:#x}) {:?} (populate={})",
             start,
-            start + size,
+            start.into() + size,
             flags,
             populate
         );
         if populate {
             // allocate all possible physical frames for populated mapping.
-            for addr in PageIter4K::new(start, start + size).unwrap() {
+            for addr in PageIter4K::new(start, (start.into() + size).into()).unwrap() {
                 if H::alloc_frame()
                     .and_then(|frame| pt.map(addr, frame, PageSize::Size4K, flags).ok())
                     .is_none()
@@ -55,13 +56,13 @@ impl<H: PagingHandler> Backend<H> {
 
     pub(crate) fn unmap_alloc(
         &self,
-        start: GuestPhysAddr,
+        start: M::VirtAddr,
         size: usize,
-        pt: &mut PageTable<H>,
+        pt: &mut PageTable64<M, PTE, H>,
         _populate: bool,
     ) -> bool {
-        debug!("unmap_alloc: [{:#x}, {:#x})", start, start + size);
-        for addr in PageIter4K::new(start, start + size).unwrap() {
+        debug!("unmap_alloc: [{:#x}, {:#x})", start, start.into() + size);
+        for addr in PageIter4K::new(start, (start.into() + size).into()).unwrap() {
             if let Ok((frame, page_size, _)) = pt.unmap(addr) {
                 // Deallocate the physical frame if there is a mapping in the
                 // page table.
@@ -78,9 +79,9 @@ impl<H: PagingHandler> Backend<H> {
 
     pub(crate) fn handle_page_fault_alloc(
         &self,
-        vaddr: GuestPhysAddr,
+        vaddr: M::VirtAddr,
         orig_flags: MappingFlags,
-        pt: &mut PageTable<H>,
+        pt: &mut PageTable64<M, PTE, H>,
         populate: bool,
     ) -> bool {
         if populate {
