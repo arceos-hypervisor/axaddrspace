@@ -24,3 +24,4 @@ page_table_entry = "0.5"
 page_table_multiarch = "0.5"
 
 npt_multiarch = { git = "https://github.com/arceos-org/npt_multiarch.git" }
+aspace_generic = { git = "https://github.com/arceos-org/aspace_generic.git" }
