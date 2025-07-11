@@ -7,21 +7,17 @@
 extern crate log;
 extern crate alloc;
 
-mod addr;
-mod address_space;
 pub mod device;
 mod frame;
 mod hal;
-mod npt;
 
-pub use addr::*;
-pub use address_space::*;
+pub use npt_multiarch::*;
+pub use aspace_generic::*;
 
 pub use frame::PhysFrame;
 pub use hal::AxMmHal;
 
-use axerrno::AxError;
-use memory_set::MappingError;
+pub type AddrSpace<H> = aspace_generic::AddrSpace<ArchPagingMetatData, ArchPTE, H>;
 
 /// Information about nested page faults.
 #[derive(Debug)]
@@ -30,13 +26,4 @@ pub struct NestedPageFaultInfo {
     pub access_flags: MappingFlags,
     /// Guest physical address that caused the nested page fault.
     pub fault_guest_paddr: GuestPhysAddr,
-}
-
-fn mapping_err_to_ax_err(err: MappingError) -> AxError {
-    warn!("Mapping error: {:?}", err);
-    match err {
-        MappingError::InvalidParam => AxError::InvalidInput,
-        MappingError::AlreadyExists => AxError::AlreadyExists,
-        MappingError::BadState => AxError::BadState,
-    }
 }
