@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["AccessWidth"],"struct":["Port","PortRange","SysRegAddr","SysRegAddrRange"],"trait":["DeviceAddr","DeviceAddrRange"]};
