@@ -26,10 +26,7 @@ pub type GuestPhysAddrRange = AddrRange<GuestPhysAddr>;
 impl page_table_multiarch::riscv::SvVirtAddr for GuestPhysAddr {
     fn flush_tlb(_vaddr: Option<Self>) {
         unsafe {
-            core::arch::asm!(
-                "hfence.vvma",
-                options(nostack, nomem, preserves_flags)
-            );
+            core::arch::asm!("hfence.vvma", options(nostack, nomem, preserves_flags));
         }
     }
 }
