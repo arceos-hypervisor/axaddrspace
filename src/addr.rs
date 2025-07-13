@@ -26,6 +26,8 @@ pub type GuestPhysAddrRange = AddrRange<GuestPhysAddr>;
 impl page_table_multiarch::riscv::SvVirtAddr for GuestPhysAddr {
     /// Flushes the TLB for the entire address space. The `_vaddr` parameter is ignored.
     /// This function always performs a full flush and does not support per-page invalidation.
+    /// 
+    /// `nomem` here is safe as `hfence.vvma` does not affect host memory address space.
     fn flush_tlb(_vaddr: Option<Self>) {
         unsafe {
             core::arch::asm!("hfence.vvma", options(nostack, nomem, preserves_flags));
