@@ -84,8 +84,10 @@ impl<H: PagingHandler> MappingBackend for Backend<H> {
         _new_flags: MappingFlags,
         _page_table: &mut PageTable<H>,
     ) -> bool {
-        // a stub here
-        true
+        _page_table
+            .protect_region(_start, _size, _new_flags, true)
+            .map(|tlb| tlb.ignore())
+            .is_ok()
     }
 }
 
