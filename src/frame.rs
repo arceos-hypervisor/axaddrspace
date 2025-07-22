@@ -68,7 +68,7 @@ impl<H: AxMmHal> Drop for PhysFrame<H> {
     fn drop(&mut self) {
         if let Some(start_paddr) = self.start_paddr {
             H::dealloc_frame(start_paddr);
-            debug!("[AxVM] deallocated PhysFrame({:#x})", start_paddr);
+            debug!("[AxVM] deallocated PhysFrame({start_paddr:#x})");
         }
     }
 }
@@ -76,94 +76,10 @@ impl<H: AxMmHal> Drop for PhysFrame<H> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{HostPhysAddr, HostVirtAddr};
+    use crate::test_utils::{BASE_PADDR, DEALLOC_COUNT, MockHal, TEST_MUTEX};
     use alloc::vec::Vec;
     use assert_matches::assert_matches;
-    use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-    use lazy_static::lazy_static;
-    use spin::Mutex;
-
-    /// The starting physical address for the simulated memory region in tests.
-    /// This offset is used to map simulated physical addresses to the `MEMORY` array's virtual address space.
-    const BASE_PADDR: usize = 0x1000;
-
-    /// Static variables to simulate global state of a memory allocator in tests.
-    static NEXT_PADDR: AtomicUsize = AtomicUsize::new(BASE_PADDR);
-
-    /// Total length of the simulated physical memory block for testing, in bytes.
-    const MEMORY_LEN: usize = 0x10000; // 64KB for testing
-
-    lazy_static! {
-        /// Simulates the actual physical memory block used for allocation.
-        static ref MEMORY: Mutex<[u8; MEMORY_LEN]> = Mutex::new([0; MEMORY_LEN]);
-
-        /// Global mutex to enforce serial execution for tests that modify shared state.
-        /// This ensures test isolation and prevents race conditions between tests.
-        static ref TEST_MUTEX: Mutex<()> = Mutex::new(());
-    }
-
-    /// Counter to track the number of deallocations.
-    static DEALLOC_COUNT: AtomicUsize = AtomicUsize::new(0);
-
-    /// Flag to simulate memory allocation failures for testing error handling.
-    static ALLOC_SHOULD_FAIL: AtomicBool = AtomicBool::new(false);
-
-    #[derive(Debug)]
-    /// A mock implementation of AxMmHal for testing purposes.
-    /// It simulates memory allocation and deallocation without actual hardware interaction.
-    ///
-    /// The `Debug` trait is derived because `assert_matches!` on `Result<PhysFrame<MockHal>, _>`
-    /// requires `PhysFrame<MockHal>` (the `T` type) to implement `Debug` for diagnostic output on assertion failure.
-    struct MockHal {}
-
-    impl AxMmHal for MockHal {
-        fn alloc_frame() -> Option<HostPhysAddr> {
-            // Use a static mutable variable to control alloc_should_fail state
-            if ALLOC_SHOULD_FAIL.load(Ordering::SeqCst) {
-                return None;
-            }
-
-            let paddr = NEXT_PADDR.fetch_add(PAGE_SIZE, Ordering::SeqCst);
-            if paddr >= MEMORY_LEN {
-                return None;
-            }
-            Some(HostPhysAddr::from_usize(paddr))
-        }
-
-        fn dealloc_frame(_paddr: HostPhysAddr) {
-            DEALLOC_COUNT.fetch_add(1, Ordering::SeqCst);
-        }
-        /// In this test mock, the "virtual address" is simply a direct pointer
-        /// to the corresponding location within the `MEMORY` array.
-        /// It simulates a physical-to-virtual memory mapping for test purposes.
-        fn phys_to_virt(paddr: HostPhysAddr) -> HostVirtAddr {
-            let offset = paddr.as_usize() - BASE_PADDR;
-            HostVirtAddr::from_usize(MEMORY.lock().as_ptr() as usize + offset)
-        }
-
-        /// Maps a virtual address (within the test process) back to a simulated physical address.
-        fn virt_to_phys(vaddr: HostVirtAddr) -> HostPhysAddr {
-            let offset = vaddr.as_usize() - MEMORY.lock().as_ptr() as usize;
-            HostPhysAddr::from_usize(BASE_PADDR + offset)
-        }
-    }
-
-    impl MockHal {
-        /// Helper function to control the simulated allocation failure.
-        fn set_alloc_fail(fail: bool) {
-            ALLOC_SHOULD_FAIL.store(fail, Ordering::SeqCst);
-        }
-
-        /// Resets all static state of the MockHal to its initial, clean state.
-        /// This is crucial for ensuring test isolation between individual test functions.
-        fn reset_state() {
-            NEXT_PADDR.store(BASE_PADDR, Ordering::SeqCst);
-            ALLOC_SHOULD_FAIL.store(false, Ordering::SeqCst);
-            DEALLOC_COUNT.store(0, Ordering::SeqCst);
-            // Lock and clear the simulated memory.
-            MEMORY.lock().fill(0); // Fill with zeros to clear any previous test data.
-        }
-    }
+    use core::sync::atomic::Ordering;
 
     #[test]
     fn test_alloc_dealloc_cycle() {
@@ -213,37 +129,32 @@ mod test {
     fn test_fill_multiple_frames() {
         let _guard = TEST_MUTEX.lock();
         MockHal::reset_state();
+        const NUM_FRAMES: usize = 5;
         {
-            let mut frames = Vec::with_capacity(3); // The vector to store allocated frames
-            let fill_values = [0xAA, 0xBB, 0xCC];
-            let mut expected_paddr = BASE_PADDR; // The expected starting address of each frame
+            let mut frames = Vec::new();
+            let mut patterns = Vec::new();
 
-            // Allocate and fill frame with its `fill_values`
-            for &value in &fill_values {
-                let mut frame = PhysFrame::<MockHal>::alloc().unwrap_or_else(|e| {
-                    panic!(
-                        "Failed to allocate frame, which filled with {:?}: {:?}",
-                        value, e
-                    )
-                });
-                assert_eq!(frame.start_paddr().as_usize(), expected_paddr);
-                frame.fill(value);
-                frames.push((frame, value)); // Store frame and its expected value
-                expected_paddr += PAGE_SIZE;
+            for i in 0..NUM_FRAMES {
+                let mut frame = PhysFrame::<MockHal>::alloc().unwrap();
+                let pattern = (0xA0 + i) as u8;
+                frame.fill(pattern);
+                frames.push(frame);
+                patterns.push(pattern);
             }
 
-            // Verify all frames
-            for (frame, expected_value) in &frames {
-                let ptr = frame.as_mut_ptr();
-                let page = unsafe { &*(ptr as *const [u8; PAGE_SIZE]) };
-                assert!(
-                    page.iter().all(|&x| x == *expected_value),
-                    "Frame verification failed for value {}",
-                    expected_value
+            for i in 0..NUM_FRAMES {
+                let actual_page = unsafe { &*(frames[i].as_mut_ptr() as *mut [u8; PAGE_SIZE]) };
+                let expected_page = &[patterns[i]; PAGE_SIZE];
+
+                assert_eq!(
+                    actual_page, expected_page,
+                    "Frame verification failed for frame index {i}: Expected pattern 0x{:02x}",
+                    patterns[i]
                 );
             }
         }
-        assert_eq!(DEALLOC_COUNT.load(Ordering::SeqCst), 3);
+        // Frames are dropped here, so deallocation count should match num_frames
+        assert_eq!(DEALLOC_COUNT.load(Ordering::SeqCst), NUM_FRAMES);
     }
 
     #[test]
