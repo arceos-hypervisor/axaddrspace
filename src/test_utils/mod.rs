@@ -85,6 +85,25 @@ impl PagingHandler for MockHal {
     }
 }
 
+/// A utility decorator for test functions that require the MockHal state to be reset before execution.
+pub(crate) fn mock_hal_test<F, R>(test_fn: F) -> R
+where
+    F: FnOnce() -> R,
+{
+    let _guard = TEST_MUTEX.lock();
+    MockHal::reset_state();
+    test_fn()
+}
+
+/// A utility function to verify the number of deallocations performed by the MockHal.
+pub(crate) fn test_dealloc_count(expected: usize) {
+    let actual_dealloc_count = DEALLOC_COUNT.load(Ordering::SeqCst);
+    assert_eq!(
+        actual_dealloc_count, expected,
+        "Expected {expected} deallocations, but found {actual_dealloc_count}"
+    );
+}
+
 impl MockHal {
     /// Simulates the allocation of a single physical frame.
     fn mock_alloc_frame() -> Option<PhysAddr> {
