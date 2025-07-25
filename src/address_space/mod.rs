@@ -265,9 +265,11 @@ impl<H: PagingHandler> Drop for AddrSpace<H> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::sync::atomic::Ordering;
-    use crate::test_utils::{BASE_PADDR, MockHal, mock_hal_test,ALLOC_COUNT,DEALLOC_COUNT,MEMORY_LEN};
+    use crate::test_utils::{
+        ALLOC_COUNT, BASE_PADDR, DEALLOC_COUNT, MEMORY_LEN, MockHal, mock_hal_test,
+    };
     use axin::axin;
+    use core::sync::atomic::Ordering;
 
     /// Generate an address space for the test
     fn setup_test_addr_space() -> (AddrSpace<MockHal>, GuestPhysAddr, usize) {
@@ -278,7 +280,7 @@ mod tests {
     }
 
     #[test]
-    #[axin (decorator(mock_hal_test))]
+    #[axin(decorator(mock_hal_test))]
     /// Check whether an address space can be created correctly
     fn test_addrspace_creation() {
         {
@@ -294,7 +296,6 @@ mod tests {
     #[test]
     #[axin(decorator(mock_hal_test))]
     fn test_contains_range() {
-
         let (addr_space, base, size) = setup_test_addr_space();
 
         // Within range
@@ -310,27 +311,30 @@ mod tests {
         // Partially out of range
         assert!(!addr_space.contains_range(base + 0x3000, 0xf000));
     }
-    
+
     #[test]
     #[axin(decorator(mock_hal_test))]
     fn test_map_linear() {
-
         let (mut addr_space, _base, _size) = setup_test_addr_space();
         let vaddr = GuestPhysAddr::from_usize(0x18000);
         let paddr = PhysAddr::from_usize(0x10000);
         let map_linear_size = 0x8000; // 32KB
         let flags = MappingFlags::READ | MappingFlags::WRITE;
 
-        addr_space.map_linear(vaddr, paddr, map_linear_size, flags).unwrap();
+        addr_space
+            .map_linear(vaddr, paddr, map_linear_size, flags)
+            .unwrap();
 
         assert_eq!(addr_space.translate(vaddr).unwrap(), paddr);
-        assert_eq!(addr_space.translate(vaddr + 0x1000).unwrap(), paddr + 0x1000);
+        assert_eq!(
+            addr_space.translate(vaddr + 0x1000).unwrap(),
+            paddr + 0x1000
+        );
     }
 
     #[test]
     #[axin(decorator(mock_hal_test))]
     fn test_map_alloc_populate() {
-
         let (mut addr_space, _base, _size) = setup_test_addr_space();
         let vaddr = GuestPhysAddr::from_usize(0x10000);
         let map_alloc_size = 0x2000; // 8KB
@@ -341,7 +345,9 @@ mod tests {
         assert_eq!(initial_allocs, 1);
 
         // Allocate physical frames immediately
-        addr_space.map_alloc(vaddr, map_alloc_size, flags, true).unwrap();
+        addr_space
+            .map_alloc(vaddr, map_alloc_size, flags, true)
+            .unwrap();
 
         // Verify additional frames were allocated
         let final_allocs = ALLOC_COUNT.load(Ordering::SeqCst);
@@ -350,7 +356,7 @@ mod tests {
         // Verify mappings exist and addresses are valid
         let paddr1 = addr_space.translate(vaddr).unwrap();
         let paddr2 = addr_space.translate(vaddr + 0x1000).unwrap();
-        
+
         // Verify physical addresses are within valid range
         assert!(paddr1.as_usize() >= BASE_PADDR && paddr1.as_usize() < BASE_PADDR + MEMORY_LEN);
         assert!(paddr2.as_usize() >= BASE_PADDR && paddr2.as_usize() < BASE_PADDR + MEMORY_LEN);
@@ -362,7 +368,6 @@ mod tests {
     #[test]
     #[axin(decorator(mock_hal_test))]
     fn test_map_alloc_lazy() {
-
         let (mut addr_space, _base, _size) = setup_test_addr_space();
         let vaddr = GuestPhysAddr::from_usize(0x13000);
         let map_alloc_size = 0x1000;
@@ -371,7 +376,9 @@ mod tests {
         let initial_allocs = ALLOC_COUNT.load(Ordering::SeqCst);
 
         // Lazy allocation - don't allocate physical frames immediately
-        addr_space.map_alloc(vaddr, map_alloc_size, flags, false).unwrap();
+        addr_space
+            .map_alloc(vaddr, map_alloc_size, flags, false)
+            .unwrap();
 
         // Frame count should only increase for page table structure, not data pages
         let after_map_allocs = ALLOC_COUNT.load(Ordering::SeqCst);
@@ -382,14 +389,15 @@ mod tests {
     #[test]
     #[axin(decorator(mock_hal_test))]
     fn test_page_fault_handling() {
-
         let (mut addr_space, _base, _size) = setup_test_addr_space();
         let vaddr = GuestPhysAddr::from_usize(0x14000);
         let map_alloc_size = 0x1000;
         let flags = MappingFlags::READ | MappingFlags::WRITE;
 
         // Create lazy allocation mapping
-        addr_space.map_alloc(vaddr, map_alloc_size, flags, false).unwrap();
+        addr_space
+            .map_alloc(vaddr, map_alloc_size, flags, false)
+            .unwrap();
 
         let before_pf_allocs = ALLOC_COUNT.load(Ordering::SeqCst);
 
@@ -411,14 +419,15 @@ mod tests {
     #[test]
     #[axin(decorator(mock_hal_test))]
     fn test_unmap() {
-
         let (mut addr_space, _base, _size) = setup_test_addr_space();
         let vaddr = GuestPhysAddr::from_usize(0x15000);
         let map_alloc_size = 0x2000;
         let flags = MappingFlags::READ | MappingFlags::WRITE;
 
         // Create mapping
-        addr_space.map_alloc(vaddr, map_alloc_size, flags, true).unwrap();
+        addr_space
+            .map_alloc(vaddr, map_alloc_size, flags, true)
+            .unwrap();
 
         // Verify mapping exists
         assert!(addr_space.translate(vaddr).is_some());
@@ -441,7 +450,6 @@ mod tests {
     #[test]
     #[axin(decorator(mock_hal_test))]
     fn test_clear() {
-
         let (mut addr_space, _base, _size) = setup_test_addr_space();
         let vaddr1 = GuestPhysAddr::from_usize(0x16000);
         let vaddr2 = GuestPhysAddr::from_usize(0x17000);
@@ -449,8 +457,12 @@ mod tests {
         let map_alloc_size = 0x1000;
 
         // Create multiple mappings
-        addr_space.map_alloc(vaddr1, map_alloc_size, flags, true).unwrap();
-        addr_space.map_alloc(vaddr2, map_alloc_size, flags, true).unwrap();
+        addr_space
+            .map_alloc(vaddr1, map_alloc_size, flags, true)
+            .unwrap();
+        addr_space
+            .map_alloc(vaddr2, map_alloc_size, flags, true)
+            .unwrap();
 
         // Verify mappings exist
         assert!(addr_space.translate(vaddr1).is_some());
@@ -469,11 +481,10 @@ mod tests {
         let after_clear_deallocs = DEALLOC_COUNT.load(Ordering::SeqCst);
         assert!(after_clear_deallocs > before_clear_deallocs);
     }
-    
+
     #[test]
     #[axin(decorator(mock_hal_test))]
     fn test_translate() {
-
         let mut addr_space = AddrSpace::<MockHal>::new_empty(0x10000.into(), 0x10000).unwrap();
         let vaddr = GuestPhysAddr::from_usize(0x18000);
         let size = 0x1000;
@@ -499,7 +510,6 @@ mod tests {
     #[test]
     #[axin(decorator(mock_hal_test))]
     fn test_translated_byte_buffer() {
-
         let mut addr_space = AddrSpace::<MockHal>::new_empty(0x10000.into(), 0x10000).unwrap();
         let vaddr = GuestPhysAddr::from_usize(0x19000);
         let size = 0x2000; // 8KB
@@ -509,7 +519,9 @@ mod tests {
         addr_space.map_alloc(vaddr, size, flags, true).unwrap();
 
         // Verify byte buffer can be obtained
-        let mut buffer = addr_space.translated_byte_buffer(vaddr, 0x100).expect( "Failed to get byte buffer");
+        let mut buffer = addr_space
+            .translated_byte_buffer(vaddr, 0x100)
+            .expect("Failed to get byte buffer");
 
         // Verify data write and read
         let test_bytes = [0xAA, 0xBB, 0xCC, 0xDD];
@@ -519,24 +531,33 @@ mod tests {
             }
 
             // Verify data write was successful
-            let verify_buffer = addr_space.translated_byte_buffer(vaddr, test_bytes.len()).unwrap();
+            let verify_buffer = addr_space
+                .translated_byte_buffer(vaddr, test_bytes.len())
+                .unwrap();
             for (i, &expected) in test_bytes.iter().enumerate() {
                 assert_eq!(verify_buffer[0][i], expected);
             }
         }
 
         // Verify exceeding area size returns None
-        assert!(addr_space.translated_byte_buffer(vaddr, size + 0x1000).is_none());
+        assert!(
+            addr_space
+                .translated_byte_buffer(vaddr, size + 0x1000)
+                .is_none()
+        );
 
         // Verify unmapped address returns None
         let unmapped_vaddr = GuestPhysAddr::from_usize(0x1D000);
-        assert!(addr_space.translated_byte_buffer(unmapped_vaddr, 0x100).is_none());
+        assert!(
+            addr_space
+                .translated_byte_buffer(unmapped_vaddr, 0x100)
+                .is_none()
+        );
     }
 
     #[test]
     #[axin(decorator(mock_hal_test))]
     fn test_translate_and_get_limit() {
-
         let mut addr_space = AddrSpace::<MockHal>::new_empty(0x10000.into(), 0x10000).unwrap();
         let vaddr = GuestPhysAddr::from_usize(0x1A000);
         let size = 0x3000; // 12KB
