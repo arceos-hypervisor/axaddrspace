@@ -485,13 +485,15 @@ mod tests {
     #[test]
     #[axin(decorator(mock_hal_test))]
     fn test_translate() {
-        let mut addr_space = AddrSpace::<MockHal>::new_empty(0x10000.into(), 0x10000).unwrap();
+        let (mut addr_space, _base, _size) = setup_test_addr_space();
         let vaddr = GuestPhysAddr::from_usize(0x18000);
-        let size = 0x1000;
+        let map_alloc_size = 0x1000;
         let flags = MappingFlags::READ | MappingFlags::WRITE;
 
         // Create mapping
-        addr_space.map_alloc(vaddr, size, flags, true).unwrap();
+        addr_space
+            .map_alloc(vaddr, map_alloc_size, flags, true)
+            .unwrap();
 
         // Verify translation succeeds
         let paddr = addr_space.translate(vaddr).expect("Translation failed");
@@ -510,13 +512,15 @@ mod tests {
     #[test]
     #[axin(decorator(mock_hal_test))]
     fn test_translated_byte_buffer() {
-        let mut addr_space = AddrSpace::<MockHal>::new_empty(0x10000.into(), 0x10000).unwrap();
+        let (mut addr_space, _base, _size) = setup_test_addr_space();
         let vaddr = GuestPhysAddr::from_usize(0x19000);
-        let size = 0x2000; // 8KB
+        let map_alloc_size = 0x2000; // 8KB
         let flags = MappingFlags::READ | MappingFlags::WRITE;
 
         // Create mapping
-        addr_space.map_alloc(vaddr, size, flags, true).unwrap();
+        addr_space
+            .map_alloc(vaddr, map_alloc_size, flags, true)
+            .unwrap();
 
         // Verify byte buffer can be obtained
         let mut buffer = addr_space
@@ -542,7 +546,7 @@ mod tests {
         // Verify exceeding area size returns None
         assert!(
             addr_space
-                .translated_byte_buffer(vaddr, size + 0x1000)
+                .translated_byte_buffer(vaddr, map_alloc_size + 0x1000)
                 .is_none()
         );
 
@@ -558,18 +562,20 @@ mod tests {
     #[test]
     #[axin(decorator(mock_hal_test))]
     fn test_translate_and_get_limit() {
-        let mut addr_space = AddrSpace::<MockHal>::new_empty(0x10000.into(), 0x10000).unwrap();
+        let (mut addr_space, _base, _size) = setup_test_addr_space();
         let vaddr = GuestPhysAddr::from_usize(0x1A000);
-        let size = 0x3000; // 12KB
+        let map_alloc_size = 0x3000; // 12KB
         let flags = MappingFlags::READ | MappingFlags::WRITE;
 
         // Create mapping
-        addr_space.map_alloc(vaddr, size, flags, true).unwrap();
+        addr_space
+            .map_alloc(vaddr, map_alloc_size, flags, true)
+            .unwrap();
 
         // Verify translation and area size retrieval
         let (paddr, area_size) = addr_space.translate_and_get_limit(vaddr).unwrap();
         assert!(paddr.as_usize() >= BASE_PADDR && paddr.as_usize() < BASE_PADDR + MEMORY_LEN);
-        assert_eq!(area_size, size);
+        assert_eq!(area_size, map_alloc_size);
 
         // Verify unmapped address returns None
         let unmapped_vaddr = GuestPhysAddr::from_usize(0x1E000);
