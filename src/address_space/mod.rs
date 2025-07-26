@@ -267,30 +267,30 @@ mod tests {
     use super::*;
     use crate::test_utils::{
         ALLOC_COUNT, BASE_PADDR, DEALLOC_COUNT, MEMORY_LEN, MockHal, mock_hal_test,
+        test_dealloc_count,
     };
     use axin::axin;
     use core::sync::atomic::Ordering;
 
     /// Generate an address space for the test
     fn setup_test_addr_space() -> (AddrSpace<MockHal>, GuestPhysAddr, usize) {
-        let base: GuestPhysAddr = GuestPhysAddr::from_usize(0x10000);
-        let size = 0x10000;
-        let addr_space = AddrSpace::<MockHal>::new_empty(base, size).unwrap();
-        (addr_space, base, size)
+        const BASE: GuestPhysAddr = GuestPhysAddr::from_usize(0x10000);
+        const SIZE: usize = 0x10000;
+        let addr_space = AddrSpace::<MockHal>::new_empty(BASE, SIZE).unwrap();
+        (addr_space, BASE, SIZE)
     }
 
     #[test]
-    #[axin(decorator(mock_hal_test))]
-    /// Check whether an address space can be created correctly
+    #[axin(decorator(mock_hal_test), on_exit(test_dealloc_count(1)))]
+    /// Check whether an address_space can be created correctly.
+    /// When creating a new address_space, a frame will be allocated for the page table,
+    /// thus triggering an alloc_frame operation.
     fn test_addrspace_creation() {
-        {
-            let (addr_space, base, size) = setup_test_addr_space();
-            assert_eq!(addr_space.base(), base);
-            assert_eq!(addr_space.size(), size);
-            assert_eq!(addr_space.end(), base + size);
-            assert_eq!(ALLOC_COUNT.load(Ordering::SeqCst), 1); // Allocated root page table
-        }
-        assert_eq!(DEALLOC_COUNT.load(Ordering::SeqCst), 1); // Deallocated root page table
+        let (addr_space, base, size) = setup_test_addr_space();
+        assert_eq!(addr_space.base(), base);
+        assert_eq!(addr_space.size(), size);
+        assert_eq!(addr_space.end(), base + size);
+        assert_eq!(ALLOC_COUNT.load(Ordering::SeqCst), 1);
     }
 
     #[test]
@@ -528,8 +528,10 @@ mod tests {
             .expect("Failed to get byte buffer");
 
         // Verify data write and read
-        let test_bytes = [0xAA, 0xBB, 0xCC, 0xDD];
-        if buffer[0].len() >= test_bytes.len() {
+        let mut test_bytes = [0; 0x100];
+        test_bytes.iter_mut().for_each(|byte| *byte = *byte + 1);
+
+        if buffer[0].len() == test_bytes.len() {
             for (i, &byte) in test_bytes.iter().enumerate() {
                 buffer[0][i] = byte;
             }
