@@ -516,6 +516,7 @@ mod tests {
         let vaddr = GuestPhysAddr::from_usize(0x19000);
         let map_alloc_size = 0x2000; // 8KB
         let flags = MappingFlags::READ | MappingFlags::WRITE;
+        let buffer_size = 0x1100;
 
         // Create mapping
         addr_space
@@ -524,24 +525,21 @@ mod tests {
 
         // Verify byte buffer can be obtained
         let mut buffer = addr_space
-            .translated_byte_buffer(vaddr, 0x100)
+            .translated_byte_buffer(vaddr, buffer_size)
             .expect("Failed to get byte buffer");
 
         // Verify data write and read
-        let mut test_bytes = [0; 0x100];
-        test_bytes.iter_mut().for_each(|byte| *byte = *byte + 1);
-
-        if buffer[0].len() == test_bytes.len() {
-            for (i, &byte) in test_bytes.iter().enumerate() {
-                buffer[0][i] = byte;
+        // Fill with values ranging from 0 to 0x100
+        for buffer_segment in buffer.iter_mut() {
+            for (i, byte) in buffer_segment.iter_mut().enumerate() {
+                *byte = (i % 0x100) as u8;
             }
+        }
 
-            // Verify data write was successful
-            let verify_buffer = addr_space
-                .translated_byte_buffer(vaddr, test_bytes.len())
-                .unwrap();
-            for (i, &expected) in test_bytes.iter().enumerate() {
-                assert_eq!(verify_buffer[0][i], expected);
+        // Verify data read correctness
+        for buffer_segment in buffer.iter_mut() {
+            for (i, byte) in buffer_segment.iter_mut().enumerate() {
+                assert_eq!(*byte, (i % 0x100) as u8);
             }
         }
 
