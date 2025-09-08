@@ -20,8 +20,8 @@ pub use address_space::*;
 pub use frame::PhysFrame;
 pub use hal::AxMmHal;
 
-use axerrno::AxError;
-use memory_set::MappingError;
+pub use axerrno::AxError;
+pub use memory_set::MappingError;
 
 /// Information about nested page faults.
 #[derive(Debug)]
