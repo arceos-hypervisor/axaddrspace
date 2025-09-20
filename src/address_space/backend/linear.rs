@@ -19,7 +19,7 @@ impl<H: PagingHandler> Backend<H> {
         pa_va_offset: usize,
     ) -> bool {
         let pa_start = PhysAddr::from(start.as_usize() - pa_va_offset);
-        debug!(
+        trace!(
             "map_linear: [{:#x}, {:#x}) -> [{:#x}, {:#x}) {:?}",
             start,
             start + size,
