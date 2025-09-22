@@ -207,6 +207,40 @@ impl<M: PagingMetaData, PTE: GenericPTE, H: PagingHandler> AddrSpace<M, PTE, H> 
         self.pt.query(vaddr).ok()
     }
 
+    /// Translates the given virtual address range into a vector of physical address and size tuples.
+    ///
+    /// Each tuple represents a contiguous physical memory region.
+    /// (PhysAddr, size)
+    /// * PhysAddr: The starting physical address of the region.
+    /// * size: The size of the region in bytes, which may be less than or equal to the page size.
+    /// Returns `None` if the virtual address range is out of the address space range or not fully mapped
+    pub fn translate_range(
+        &self,
+        vaddr: M::VirtAddr,
+        size: usize,
+    ) -> Option<Vec<(PhysAddr, usize)>> {
+        if !self
+            .va_range
+            .contains_range(AddrRange::from_start_size(vaddr, size))
+        {
+            return None;
+        }
+
+        let mut start = vaddr;
+        let end = start.add(size);
+
+        let mut v = Vec::new();
+        while start < end {
+            let (start_paddr, _, page_size) = self.pt.query(start).ok()?;
+            let mut end_va = start.align_down(page_size).add(page_size.into());
+            end_va = end_va.min(end);
+
+            v.push((start_paddr, (end_va.sub_addr(start)).into()));
+            start = end_va;
+        }
+        Some(v)
+    }
+
     /// Translate&Copy the given `VirtAddr` with LENGTH len to a mutable u8 Vec through page table.
     ///
     /// Returns `None` if the virtual address is out of range or not mapped.
