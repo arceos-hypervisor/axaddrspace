@@ -11,8 +11,8 @@ cfg_if::cfg_if! {
         pub type NestedPageTableL4<H> = arch::ExtendedPageTable<H>;
 
     } else if #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))] {
-        pub type NestedPageTableL3<H> = page_table_multiarch::PageTable64<page_table_multiarch::riscv::Sv39MetaData, page_table_multiarch::riscv::Rv64PTE, H>;
-        pub type NestedPageTableL4<H> = page_table_multiarch::PageTable64<page_table_multiarch::riscv::Sv48MetaData, page_table_multiarch::riscv::Rv64PTE, H>;
+        pub type NestedPageTableL3<H> = page_table_multiarch::PageTable64<arch::Sv39MetaData<GuestPhysAddr>, arch::Rv64PTE, H>;
+        pub type NestedPageTableL4<H> = page_table_multiarch::PageTable64<arch::Sv48MetaData<GuestPhysAddr>, arch::Rv64PTE, H>;
 
     } else if #[cfg(target_arch = "aarch64")] {
        /// AArch64 Level 3 nested page table type alias.
@@ -75,12 +75,14 @@ impl<H: PagingHandler> NestedPageTable<H> {
             #[cfg(not(target_arch = "x86_64"))]
             NestedPageTable::L3(pt) => {
                 pt.map(vaddr, paddr, size, flags)
-                    .map_err(|_| MappingError::BadState)?;
+                    .map_err(|_| MappingError::BadState)?
+                    .flush();
             }
             NestedPageTable::L4(pt) => {
                 let _res = pt
                     .map(vaddr, paddr, size, flags)
-                    .map_err(|_| MappingError::BadState)?;
+                    .map_err(|_| MappingError::BadState)?
+                    .flush();
             }
         }
         Ok(())
