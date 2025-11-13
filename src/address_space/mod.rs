@@ -1,7 +1,7 @@
 use alloc::vec::Vec;
 use core::fmt;
 
-use axerrno::{AxError, AxResult, ax_err};
+use axerrno::ax_err;
 use memory_addr::{MemoryAddr, PhysAddr, is_aligned_4k};
 use memory_set::{MemoryArea, MemorySet};
 use page_table_multiarch::PagingHandler;
@@ -11,6 +11,7 @@ use crate::{GuestPhysAddr, GuestPhysAddrRange, mapping_err_to_ax_err};
 
 mod backend;
 
+pub use axerrno::{AxError, AxResult};
 pub use backend::Backend;
 pub use page_table_entry::MappingFlags;
 
@@ -43,7 +44,7 @@ impl<H: PagingHandler> AddrSpace<H> {
     }
 
     /// Returns the root physical address of the inner page table.
-    pub const fn page_table_root(&self) -> PhysAddr {
+    pub fn page_table_root(&self) -> PhysAddr {
         self.pt.root_paddr()
     }
 
