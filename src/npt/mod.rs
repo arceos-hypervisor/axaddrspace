@@ -11,8 +11,8 @@ cfg_if::cfg_if! {
         pub type NestedPageTableL4<H> = arch::ExtendedPageTable<H>;
 
     } else if #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))] {
-        pub type NestedPageTableL3<H> = page_table_multiarch::PageTable64<arch::Sv39MetaData, arch::Rv64PTE, H>;
-        pub type NestedPageTableL4<H> = page_table_multiarch::PageTable64<arch::Sv48MetaData, arch::Rv64PTE, H>;
+        pub type NestedPageTableL3<H> = page_table_multiarch::PageTable64<page_table_multiarch::riscv::Sv39MetaData, page_table_multiarch::riscv::Rv64PTE, H>;
+        pub type NestedPageTableL4<H> = page_table_multiarch::PageTable64<page_table_multiarch::riscv::Sv48MetaData, page_table_multiarch::riscv::Rv64PTE, H>;
 
     } else if #[cfg(target_arch = "aarch64")] {
        /// AArch64 Level 3 nested page table type alias.
