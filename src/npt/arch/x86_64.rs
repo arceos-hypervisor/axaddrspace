@@ -188,3 +188,7 @@ impl PagingMetaData for ExtendedPageTableMetadata {
 
 /// The VMX extended page table. (SDM Vol. 3C, Section 29.3)
 pub type ExtendedPageTable<H> = PageTable64<ExtendedPageTableMetadata, EPTEntry, H>;
+
+/// x86_64 Level 4 nested page table type alias (x86_64 only supports L4).
+pub type NestedPageTableL4<H> = ExtendedPageTable<H>;
+
