@@ -271,6 +271,16 @@ impl<M: PagingMetaData, PTE: GenericPTE, H: PagingHandler> AddrSpace<M, PTE, H> 
 }
 
 impl<M: PagingMetaData, PTE: GenericPTE, H: PagingHandler> AddrSpace<M, PTE, H> {
+    pub fn copy_mappings_from(
+        &mut self,
+        src: &Self,
+        mapping_start: M::VirtAddr,
+        size: usize,
+    ) -> AxResult {
+        self.pt.copy_from(&src.pt, mapping_start, size);
+        Ok(())
+    }
+
     pub fn clone(&self) -> AxResult<Self> {
         let mut cloned_aspace = Self::new_empty(self.base(), self.size())?;
 
