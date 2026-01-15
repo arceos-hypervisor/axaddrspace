@@ -23,6 +23,7 @@ pub use hal::AxMmHal;
 
 pub use memory_accessor::GuestMemoryAccessor;
 
+use axerrno::AxError;
 use memory_set::MappingError;
 
 /// Information about nested page faults.

@@ -9,13 +9,14 @@ use crate::GuestPhysAddr;
 cfg_if::cfg_if! {
     if #[cfg(target_arch = "x86_64")] {
         pub type NestedPageTableL4<H> = arch::ExtendedPageTable<H>;
-
     } else if #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))] {
+        /// RISC-V Level 3 nested page table (Sv39, x4 not supported)
         pub type NestedPageTableL3<H> = page_table_multiarch::PageTable64<arch::Sv39MetaData<GuestPhysAddr>, arch::Rv64PTE, H>;
-        pub type NestedPageTableL4<H> = page_table_multiarch::PageTable64<arch::Sv48MetaData<GuestPhysAddr>, arch::Rv64PTE, H>;
 
+        /// RISC-V Level 4 nested page table (Sv48, x4 not supported)
+        pub type NestedPageTableL4<H> = page_table_multiarch::PageTable64<arch::Sv48MetaData<GuestPhysAddr>, arch::Rv64PTE, H>;
     } else if #[cfg(target_arch = "aarch64")] {
-       /// AArch64 Level 3 nested page table type alias.
+        /// AArch64 Level 3 nested page table type alias.
         pub type NestedPageTableL3<H> = page_table_multiarch::PageTable64<arch::A64HVPagingMetaDataL3, arch::A64PTEHV, H>;
 
         /// AArch64 Level 4 nested page table type alias.
@@ -55,7 +56,7 @@ impl<H: PagingHandler> NestedPageTable<H> {
         }
     }
 
-    pub fn root_paddr(&self) -> memory_addr::PhysAddr {
+    pub const fn root_paddr(&self) -> memory_addr::PhysAddr {
         match self {
             #[cfg(not(target_arch = "x86_64"))]
             NestedPageTable::L3(pt) => pt.root_paddr(),
