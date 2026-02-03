@@ -79,8 +79,7 @@ impl<H: PagingHandler> NestedPageTable<H> {
                     .flush();
             }
             NestedPageTable::L4(pt) => {
-                pt
-                    .map(vaddr, paddr, size, flags)
+                pt.map(vaddr, paddr, size, flags)
                     .map_err(|_| MappingError::BadState)?
                     .flush();
             }
