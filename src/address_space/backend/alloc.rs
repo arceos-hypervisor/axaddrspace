@@ -32,7 +32,7 @@ impl<H: PagingHandler> Backend<H> {
             // allocate all possible physical frames for populated mapping.
             for addr in PageIter4K::new(start, start + size).unwrap() {
                 if H::alloc_frame()
-                    .and_then(|frame| pt.map(addr, frame, PageSize::Size4K, flags).ok())
+                    .and_then(|frame| pt.cursor().map(addr, frame, PageSize::Size4K, flags).ok())
                     .is_none()
                 {
                     return false;
@@ -41,15 +41,15 @@ impl<H: PagingHandler> Backend<H> {
             true
         } else {
             // Map to a empty entry for on-demand mapping.
-            pt.map_region(
-                start,
-                |_va| PhysAddr::from(0),
-                size,
-                MappingFlags::empty(),
-                false,
-                false,
-            )
-            .is_ok()
+            pt.cursor()
+                .map_region(
+                    start,
+                    |_va| PhysAddr::from(0),
+                    size,
+                    MappingFlags::empty(),
+                    false,
+                )
+                .is_ok()
         }
     }
 
@@ -62,7 +62,7 @@ impl<H: PagingHandler> Backend<H> {
     ) -> bool {
         debug!("unmap_alloc: [{:#x}, {:#x})", start, start + size);
         for addr in PageIter4K::new(start, start + size).unwrap() {
-            if let Ok((frame, page_size, _)) = pt.unmap(addr) {
+            if let Ok((frame, _, page_size)) = pt.cursor().unmap(addr) {
                 // Deallocate the physical frame if there is a mapping in the
                 // page table.
                 if page_size.is_huge() {
@@ -88,9 +88,9 @@ impl<H: PagingHandler> Backend<H> {
         } else {
             // Allocate a physical frame lazily and map it to the fault address.
             // `vaddr` does not need to be aligned. It will be automatically
-            // aligned during `pt.remap` regardless of the page size.
+            // aligned during `pt.cursor().remap` regardless of the page size.
             H::alloc_frame()
-                .and_then(|frame| pt.remap(vaddr, frame, orig_flags).ok())
+                .and_then(|frame| pt.cursor().remap(vaddr, frame, orig_flags).ok())
                 .is_some()
         }
     }
