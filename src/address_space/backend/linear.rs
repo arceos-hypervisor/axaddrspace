@@ -41,15 +41,15 @@ impl<H: PagingHandler> Backend<H> {
             pa_start + size,
             flags
         );
-        pt.map_region(
-            start,
-            |va| PhysAddr::from(va.as_usize() - pa_va_offset),
-            size,
-            flags,
-            true,
-            true,
-        )
-        .is_ok()
+        pt.cursor()
+            .map_region(
+                start,
+                |va| PhysAddr::from(va.as_usize() - pa_va_offset),
+                size,
+                flags,
+                true,
+            )
+            .is_ok()
     }
 
     pub(crate) fn unmap_linear(
@@ -60,6 +60,6 @@ impl<H: PagingHandler> Backend<H> {
         _pa_va_offset: usize,
     ) -> bool {
         debug!("unmap_linear: [{:#x}, {:#x})", start, start + size);
-        pt.unmap_region(start, size, true).is_ok()
+        pt.cursor().unmap_region(start, size).is_ok()
     }
 }
