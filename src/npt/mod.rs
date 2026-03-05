@@ -1,3 +1,17 @@
+// Copyright 2025 The Axvisor Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use axerrno::{ax_err, ax_err_type};
 use memory_addr::PhysAddr;
 use memory_set::MappingError;
@@ -41,18 +55,18 @@ impl<H: PagingHandler> NestedPageTable<H> {
                     use axerrno::ax_err_type;
 
                     let res = NestedPageTableL3::try_new().map_err(|_| ax_err_type!(NoMemory))?;
-                    return Ok(NestedPageTable::L3(res));
+                    Ok(NestedPageTable::L3(res))
                 }
                 #[cfg(target_arch = "x86_64")]
                 {
-                    return ax_err!(InvalidInput, "L3 not supported on x86_64");
+                    ax_err!(InvalidInput, "L3 not supported on x86_64")
                 }
             }
             4 => {
                 let res = NestedPageTableL4::try_new().map_err(|_| ax_err_type!(NoMemory))?;
-                return Ok(NestedPageTable::L4(res));
+                Ok(NestedPageTable::L4(res))
             }
-            _ => return ax_err!(InvalidInput, "Invalid page table level"),
+            _ => ax_err!(InvalidInput, "Invalid page table level"),
         }
     }
 
@@ -80,8 +94,7 @@ impl<H: PagingHandler> NestedPageTable<H> {
                     .flush();
             }
             NestedPageTable::L4(pt) => {
-                let _res = pt
-                    .map(vaddr, paddr, size, flags)
+                pt.map(vaddr, paddr, size, flags)
                     .map_err(|_| MappingError::BadState)?
                     .flush();
             }
