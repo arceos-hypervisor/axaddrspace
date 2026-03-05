@@ -46,7 +46,7 @@ impl<H: PagingHandler> Backend<H> {
             // allocate all possible physical frames for populated mapping.
             for addr in PageIter4K::new(start, start + size).unwrap() {
                 if H::alloc_frame()
-                    .and_then(|frame| pt.cursor().map(addr, frame, PageSize::Size4K, flags).ok())
+                    .and_then(|frame| pt.map(addr, frame, PageSize::Size4K, flags).ok())
                     .is_none()
                 {
                     return false;
@@ -55,15 +55,14 @@ impl<H: PagingHandler> Backend<H> {
             true
         } else {
             // Map to a empty entry for on-demand mapping.
-            pt.cursor()
-                .map_region(
-                    start,
-                    |_va| PhysAddr::from(0),
-                    size,
-                    MappingFlags::empty(),
-                    false,
-                )
-                .is_ok()
+            pt.map_region(
+                start,
+                |_va| PhysAddr::from(0),
+                size,
+                MappingFlags::empty(),
+                false,
+            )
+            .is_ok()
         }
     }
 
@@ -76,7 +75,7 @@ impl<H: PagingHandler> Backend<H> {
     ) -> bool {
         debug!("unmap_alloc: [{:#x}, {:#x})", start, start + size);
         for addr in PageIter4K::new(start, start + size).unwrap() {
-            if let Ok((frame, _, page_size)) = pt.cursor().unmap(addr) {
+            if let Ok((frame, _, page_size)) = pt.unmap(addr) {
                 // Deallocate the physical frame if there is a mapping in the
                 // page table.
                 if page_size.is_huge() {
@@ -106,7 +105,7 @@ impl<H: PagingHandler> Backend<H> {
             let Some(frame) = H::alloc_frame() else {
                 return false;
             };
-            pt.cursor().remap(vaddr, frame, orig_flags).ok()
+            pt.remap(vaddr, frame, orig_flags)
         }
     }
 }
