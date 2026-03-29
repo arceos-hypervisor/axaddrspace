@@ -24,5 +24,9 @@ cfg_if::cfg_if! {
     } else if #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))] {
         mod riscv;
         pub use self::riscv::*;
+    } else if #[cfg(target_arch = "loongarch64")] {
+        // 新增：龙芯架构支持
+        mod loongarch64;
+        pub use self::loongarch64::*;
     }
 }
