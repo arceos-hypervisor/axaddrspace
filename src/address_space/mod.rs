@@ -97,9 +97,13 @@ impl<M: PagingMetaData, PTE: GenericPTE, H: PagingHandler> AddrSpace<M, PTE, H> 
             flags,
             Backend::new_linear(offset, allow_huge),
         );
-        self.areas
-            .map(area, &mut self.pt, false)
-            .map_err(mapping_err_to_ax_err)?;
+        self.areas.map(area, &mut self.pt, false).map_err(|e| {
+            error!(
+                "map_linear: Failed to map {:?} to {:?}, size {:#x}",
+                start_vaddr, start_paddr, size
+            );
+            mapping_err_to_ax_err(e)
+        })?;
         Ok(())
     }
 
@@ -126,9 +130,10 @@ impl<M: PagingMetaData, PTE: GenericPTE, H: PagingHandler> AddrSpace<M, PTE, H> 
         }
 
         let area = MemoryArea::new(start, size, flags, Backend::new_alloc(populate));
-        self.areas
-            .map(area, &mut self.pt, false)
-            .map_err(mapping_err_to_ax_err)?;
+        self.areas.map(area, &mut self.pt, false).map_err(|e| {
+            error!("map_alloc: Failed to map {:?} with size {:#x}", start, size);
+            mapping_err_to_ax_err(e)
+        })?;
         Ok(())
     }
 
