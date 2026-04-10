@@ -144,6 +144,10 @@ impl LoongArchPTE {
 }
 
 impl GenericPTE for LoongArchPTE {
+    fn bits(self) -> usize {
+        self.0 as usize
+    }
+
     fn new_page(paddr: HostPhysAddr, flags: MappingFlags, is_huge: bool) -> Self {
         let mut pte_value = paddr.as_usize() as u64 & Self::PHYS_ADDR_MASK;
 
@@ -300,16 +304,31 @@ impl PagingMetaData for LoongArchPagingMetaDataL3 {
 
     fn flush_tlb(vaddr: Option<Self::VirtAddr>) {
         unsafe {
+            // Get current GID from GSTAT CSR (0x50)
+            // GID is in bits 16-23
+            let gstat: usize;
+            asm!("csrrd {}, 0x50", out(reg) gstat);
+            let gid = (gstat >> 16) & 0xFF;
+
             if let Some(vaddr) = vaddr {
-                // 使用gtlbclr清除单个TLB条目
-                // 注意：gtlbclr可能需要TLB索引而不是虚拟地址
-                // 这里假设可以直接使用虚拟地址
-                asm!("gtlbclr {}", in(reg) vaddr.as_usize());
+                // Use invtlb with op=0x7 (GID_VA) to flush specific address
+                // invtlb 0x7, rj, rk - delete entries matching GID and VA
+                // rj = gid, rk = virtual address
+                asm!(
+                    "invtlb 0x7, {0}, {1}",
+                    in(reg) gid,
+                    in(reg) vaddr.as_usize()
+                );
             } else {
-                // 刷新所有Guest TLB条目
-                asm!("gtlbflush");
+                // Use invtlb with op=0x6 (GID) to flush all entries for this GID
+                // invtlb 0x6, rj, rk - delete all entries matching GID
+                // rj = gid, rk = 0 (ignored)
+                asm!(
+                    "invtlb 0x6, {0}, $r0",
+                    in(reg) gid
+                );
             }
-            // 内存屏障，确保TLB操作完成
+            // Memory barrier to ensure TLB operation completes
             asm!("dbar 0");
         }
     }

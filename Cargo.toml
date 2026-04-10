@@ -16,6 +16,7 @@ version = "0.3.0"
 [features]
 arm-el2 = ["page_table_entry/arm-el2"]
 loongarch = []  # 龙芯支持特性
+4-level-ept = []  # 4级扩展页表支持
 default = ["arm-el2"]
 
 [dependencies]

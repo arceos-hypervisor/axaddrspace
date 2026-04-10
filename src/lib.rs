@@ -16,6 +16,8 @@
 
 #![no_std]
 #![feature(const_trait_impl)]
+// Allow unsafe operations in unsafe functions (Rust 2024 edition compatibility)
+#![allow(unsafe_op_in_unsafe_fn)]
 
 #[macro_use]
 extern crate log;
