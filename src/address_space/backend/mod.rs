@@ -25,6 +25,11 @@ pub enum Backend<M: PagingMetaData, PTE: GenericPTE, H: PagingHandler> {
         /// `vaddr - paddr`.
         pa_va_offset: usize,
         allow_huge: bool,
+        /// Whether mapping is chunked so hardware leaves never exceed 2 MiB.
+        max_page_size_2m: bool,
+        /// Whether area removal flushes every leaf immediately. HyperAlloc
+        /// uses false and issues one explicit INVEPT after its complete batch.
+        flush_tlb_by_page_on_unmap: bool,
     },
     /// Allocation mapping backend.
     ///
@@ -46,9 +51,13 @@ impl<M: PagingMetaData, PTE: GenericPTE, H: PagingHandler> Clone for Backend<M, 
             Self::Linear {
                 pa_va_offset,
                 allow_huge,
+                max_page_size_2m,
+                flush_tlb_by_page_on_unmap,
             } => Self::Linear {
                 pa_va_offset,
                 allow_huge,
+                max_page_size_2m,
+                flush_tlb_by_page_on_unmap,
             },
             Self::Alloc { populate, .. } => Self::Alloc {
                 populate,
@@ -74,15 +83,60 @@ impl<M: PagingMetaData, PTE: GenericPTE, H: PagingHandler> MappingBackend for Ba
             Self::Linear {
                 pa_va_offset,
                 allow_huge,
-            } => self.map_linear(start, size, flags, pt, allow_huge, pa_va_offset),
+                max_page_size_2m,
+                ..
+            } => self.map_linear(
+                start,
+                size,
+                flags,
+                pt,
+                allow_huge,
+                max_page_size_2m,
+                pa_va_offset,
+            ),
             Self::Alloc { populate, .. } => self.map_alloc(start, size, flags, pt, populate),
         }
     }
 
     fn unmap(&self, start: M::VirtAddr, size: usize, pt: &mut Self::PageTable) -> bool {
         match *self {
-            Self::Linear { pa_va_offset, .. } => self.unmap_linear(start, size, pt, pa_va_offset),
+            Self::Linear {
+                pa_va_offset,
+                flush_tlb_by_page_on_unmap,
+                ..
+            } => self.unmap_linear(
+                start,
+                size,
+                pt,
+                pa_va_offset,
+                flush_tlb_by_page_on_unmap,
+            ),
             Self::Alloc { populate, .. } => self.unmap_alloc(start, size, pt, populate),
+        }
+    }
+
+    fn can_merge_unmap(&self, other: &Self) -> bool {
+        match (self, other) {
+            (
+                Self::Linear {
+                    pa_va_offset: left_offset,
+                    allow_huge: left_huge,
+                    max_page_size_2m: left_max_2m,
+                    flush_tlb_by_page_on_unmap: left_flush,
+                },
+                Self::Linear {
+                    pa_va_offset: right_offset,
+                    allow_huge: right_huge,
+                    max_page_size_2m: right_max_2m,
+                    flush_tlb_by_page_on_unmap: right_flush,
+                },
+            ) => {
+                left_offset == right_offset
+                    && left_huge == right_huge
+                    && left_max_2m == right_max_2m
+                    && left_flush == right_flush
+            }
+            _ => false,
         }
     }
 

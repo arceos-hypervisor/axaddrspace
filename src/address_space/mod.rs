@@ -76,6 +76,70 @@ impl<M: PagingMetaData, PTE: GenericPTE, H: PagingHandler> AddrSpace<M, PTE, H> 
         flags: MappingFlags,
         allow_huge: bool,
     ) -> AxResult {
+        self.map_linear_with_unmap_policy(
+            start_vaddr,
+            start_paddr,
+            size,
+            flags,
+            allow_huge,
+            true,
+            false,
+        )
+    }
+
+    /// Add a linear mapping whose removals defer leaf TLB invalidation. The
+    /// caller must issue an appropriate address-space invalidation after every
+    /// successful unmap and before the physical frames can be reused.
+    pub fn map_linear_deferred_unmap(
+        &mut self,
+        start_vaddr: M::VirtAddr,
+        start_paddr: PhysAddr,
+        size: usize,
+        flags: MappingFlags,
+        allow_huge: bool,
+    ) -> AxResult {
+        self.map_linear_with_unmap_policy(
+            start_vaddr,
+            start_paddr,
+            size,
+            flags,
+            allow_huge,
+            false,
+            false,
+        )
+    }
+
+    /// Add one linear software area backed by hardware leaves no larger than
+    /// 2 MiB. This keeps range bookkeeping aggregated without creating 1-GiB
+    /// leaves that a per-2-MiB PDE registry cannot address.
+    pub fn map_linear_deferred_unmap_2m(
+        &mut self,
+        start_vaddr: M::VirtAddr,
+        start_paddr: PhysAddr,
+        size: usize,
+        flags: MappingFlags,
+    ) -> AxResult {
+        self.map_linear_with_unmap_policy(
+            start_vaddr,
+            start_paddr,
+            size,
+            flags,
+            true,
+            false,
+            true,
+        )
+    }
+
+    fn map_linear_with_unmap_policy(
+        &mut self,
+        start_vaddr: M::VirtAddr,
+        start_paddr: PhysAddr,
+        size: usize,
+        flags: MappingFlags,
+        allow_huge: bool,
+        flush_tlb_by_page_on_unmap: bool,
+        max_page_size_2m: bool,
+    ) -> AxResult {
         if !self.contains_range(start_vaddr, size) {
             return ax_err!(
                 InvalidInput,
@@ -95,7 +159,13 @@ impl<M: PagingMetaData, PTE: GenericPTE, H: PagingHandler> AddrSpace<M, PTE, H> 
             start_vaddr,
             size,
             flags,
-            Backend::new_linear(offset, allow_huge),
+            if flush_tlb_by_page_on_unmap {
+                Backend::new_linear(offset, allow_huge)
+            } else if max_page_size_2m {
+                Backend::new_linear_deferred_unmap_2m(offset)
+            } else {
+                Backend::new_linear_deferred_unmap(offset, allow_huge)
+            },
         );
         self.areas
             .map(area, &mut self.pt, false)
@@ -168,6 +238,80 @@ impl<M: PagingMetaData, PTE: GenericPTE, H: PagingHandler> AddrSpace<M, PTE, H> 
             .unmap(start, size, &mut self.pt)
             .map_err(mapping_err_to_ax_err)?;
         Ok(())
+    }
+
+    /// Removes multiple sorted ranges in one area-tree scan. Every range must
+    /// align with complete memory areas. Areas created with
+    /// [`Self::map_linear_deferred_unmap`] leave TLB invalidation to the caller.
+    pub fn unmap_ranges_exact(&mut self, ranges: &[(M::VirtAddr, usize)]) -> AxResult {
+        let mut checked = Vec::with_capacity(ranges.len());
+        for &(start, size) in ranges {
+            if !self.contains_range(start, size) {
+                return ax_err!(InvalidInput, "address out of range");
+            }
+            if !start.is_aligned_4k() || !is_aligned_4k(size) || size == 0 {
+                return ax_err!(InvalidInput, "address not aligned");
+            }
+            checked.push(
+                AddrRange::try_from_start_size(start, size)
+                    .ok_or(AxError::InvalidInput)?,
+            );
+        }
+        self.areas
+            .unmap_ranges_exact(&checked, &mut self.pt)
+            .map_err(mapping_err_to_ax_err)
+    }
+
+    /// Removes exact areas after a caller-supplied leaf revoke. The callback
+    /// executes only after all range boundaries and area coverage have been
+    /// validated. It must revoke every page-table leaf in `ranges` before
+    /// returning true; the caller remains responsible for the final TLB/EPT
+    /// invalidation.
+    pub fn unmap_ranges_exact_external(
+        &mut self,
+        ranges: &[(M::VirtAddr, usize)],
+        revoke: impl FnOnce() -> bool,
+    ) -> AxResult {
+        let mut checked = Vec::with_capacity(ranges.len());
+        for &(start, size) in ranges {
+            if !self.contains_range(start, size) {
+                return ax_err!(InvalidInput, "address out of range");
+            }
+            if !start.is_aligned_4k() || !is_aligned_4k(size) || size == 0 {
+                return ax_err!(InvalidInput, "address not aligned");
+            }
+            checked.push(
+                AddrRange::try_from_start_size(start, size).ok_or(AxError::InvalidInput)?,
+            );
+        }
+        self.areas
+            .unmap_ranges_exact_external(&checked, revoke)
+            .map_err(mapping_err_to_ax_err)
+    }
+
+    /// Removes arbitrary mapped ranges after a caller-owned leaf revoke. All
+    /// ranges are validated as mapped before the callback executes; surviving
+    /// area complements are rebuilt in one pass after it succeeds.
+    pub fn unmap_ranges_external(
+        &mut self,
+        ranges: &[(M::VirtAddr, usize)],
+        revoke: impl FnOnce() -> bool,
+    ) -> AxResult {
+        let mut checked = Vec::with_capacity(ranges.len());
+        for &(start, size) in ranges {
+            if !self.contains_range(start, size) {
+                return ax_err!(InvalidInput, "address out of range");
+            }
+            if !start.is_aligned_4k() || !is_aligned_4k(size) || size == 0 {
+                return ax_err!(InvalidInput, "address not aligned");
+            }
+            checked.push(
+                AddrRange::try_from_start_size(start, size).ok_or(AxError::InvalidInput)?,
+            );
+        }
+        self.areas
+            .unmap_ranges_external(&checked, revoke)
+            .map_err(mapping_err_to_ax_err)
     }
 
     /// Removes all mappings in the address space.
